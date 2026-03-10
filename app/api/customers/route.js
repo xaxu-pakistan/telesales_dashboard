@@ -23,14 +23,14 @@ export async function GET(request) {
     const dateFrom = searchParams.get("dateFrom") || null;
     const dateTo = searchParams.get("dateTo") || null;
     const status = searchParams.get("status") || "all";
-    
+
     const MANDATORY_CUTOFF = "2024-11-01";
     const today = new Date();
-    
+
     const dateAtOffset = (days) => {
-        const d = new Date(today);
-        d.setDate(d.getDate() - days);
-        return d.toISOString().split("T")[0];
+      const d = new Date(today);
+      d.setDate(d.getDate() - days);
+      return d.toISOString().split("T")[0];
     };
 
     let conditions = ["orders_count:>=2"];
@@ -41,8 +41,8 @@ export async function GET(request) {
 
     // 2. Handle "Order To"
     if (dateTo) {
-        const to = dateTo.split("T")[0];
-        conditions.push(`last_order_date:<=${to}`);
+      const to = dateTo.split("T")[0];
+      conditions.push(`last_order_date:<=${to}`);
     }
 
     // ... (rest of the query logic) ...
@@ -56,70 +56,82 @@ export async function GET(request) {
 
     const queryStr = conditions.join(" AND ");
 
-    const { customers, hasNextPage, endCursor } = await fetchCustomers({ 
-      cursor, 
-      queryStr 
+    const { customers, hasNextPage, endCursor } = await fetchCustomers({
+      cursor,
+      queryStr,
     });
 
     const followupsDb = await getFollowupsDb();
-    
+
     // Enrich with follow-up logic
-    const enriched = customers.map(customer => {
-      try {
-        const adminUrl = `https://${process.env.SHOPIFY_STORE}/admin/customers/${customer.id}`;
-        let followupDate = null;
-        
-        if (customer.lastOrder) {
-          followupDate = calculateFollowupDate(
-            customer.lastOrder.processedAt, 
-            customer.lastOrder.amount,
-            customer.lastOrder.items
+    const enriched = customers
+      .map((customer) => {
+        try {
+          const adminUrl = `https://${process.env.SHOPIFY_ADMIN_URL}/${customer.id}`;
+          // https://admin.shopify.com/store/xaxupakistan/customers/9156013916332
+          let followupDate = null;
+
+          if (customer.lastOrder) {
+            followupDate = calculateFollowupDate(
+              customer.lastOrder.processedAt,
+              customer.lastOrder.amount,
+              customer.lastOrder.items,
+            );
+          }
+
+          const followupStatus = getFollowupStatus(
+            followupDate,
+            !!followupsDb[customer.id],
           );
+
+          return {
+            ...customer,
+            customerId: customer.id,
+            adminUrl,
+            followupDate,
+            followupStatus,
+          };
+        } catch (itemErr) {
+          console.error("Error enriching customer:", customer.id, itemErr);
+          return null;
         }
-        
-        const followupStatus = getFollowupStatus(followupDate, !!followupsDb[customer.id]);
-        
-        return {
-          ...customer,
-          customerId: customer.id,
-          adminUrl,
-          followupDate,
-          followupStatus
-        };
-      } catch (itemErr) {
-        console.error("Error enriching customer:", customer.id, itemErr);
-        return null;
-      }
-    }).filter(c => {
+      })
+      .filter((c) => {
         if (!c) return false;
         if (!c.lastOrder || !c.lastOrder.processedAt) return false;
-        
+
         const orderDateStr = c.lastOrder.processedAt.split("T")[0];
-        
+
         // If user picked a date, enforce it strictly
         if (dateFrom) {
-            if (orderDateStr < dateFrom.split("T")[0]) return false;
+          if (orderDateStr < dateFrom.split("T")[0]) return false;
         } else {
-            // Otherwise use the default baseline
-            if (orderDateStr < MANDATORY_CUTOFF) return false;
+          // Otherwise use the default baseline
+          if (orderDateStr < MANDATORY_CUTOFF) return false;
         }
 
         if (dateTo) {
-            if (orderDateStr > dateTo.split("T")[0]) return false;
+          if (orderDateStr > dateTo.split("T")[0]) return false;
         }
 
         return true;
-    });
+      });
 
-    const filtered = status === "all" ? enriched : enriched.filter(c => c.followupStatus === status);
+    const filtered =
+      status === "all"
+        ? enriched
+        : enriched.filter((c) => c.followupStatus === status);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       customers: filtered,
       hasNextPage,
-      endCursor
+      endCursor,
     });
   } catch (err) {
     console.error("FATAL API ERROR:", err);
-    return NextResponse.json({ error: "Failed to fetch customers", details: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch customers", details: err.message },
+      { status: 500 },
+    );
   }
 }
