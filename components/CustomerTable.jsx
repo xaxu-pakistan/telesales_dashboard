@@ -27,7 +27,6 @@ function CustomerRow({ index, c, loadingId, onMarkDone }) {
   if (isDone) bgClass = "border-b border-zinc-900/40 bg-zinc-950/50 opacity-60 hover:bg-zinc-900/40 transition-all duration-200";
 
   const name = `${c.firstName || ""} ${c.lastName || ""}`.trim() || "—";
-  const itemsText = c.lastOrder?.items?.length > 0 ? c.lastOrder.items.join(", ") : null;
 
   return (
     <div className={`flex items-center px-4 py-3 ${bgClass} group`}>
@@ -93,23 +92,23 @@ function CustomerRow({ index, c, loadingId, onMarkDone }) {
 
       {/* Order Date */}
       <div className="w-32 shrink-0 pr-4 text-sm text-zinc-400 flex items-center gap-1.5">
-        {c.lastOrder?.date ? (
-          <><CalendarIcon className="w-3 h-3 text-zinc-500 shrink-0" />{new Date(c.lastOrder.date).toLocaleDateString("en-GB")}</>
+        {c.lastOrder?.processedAt ? (
+          <><CalendarIcon className="w-3 h-3 text-zinc-500 shrink-0" />{new Date(c.lastOrder.processedAt).toLocaleDateString("en-GB")}</>
         ) : <span className="text-zinc-600">—</span>}
       </div>
 
       {/* Items */}
       <div className="w-48 shrink-0 pr-4 text-sm text-zinc-400 flex items-center">
-        {itemsText ? (
+        {c.lastOrder?.items?.length > 0 ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="cursor-help border-b border-dotted border-zinc-600 truncate max-w-full hover:text-zinc-200 transition-colors">
-                  {truncate(itemsText, 30)}
+                  {truncate(c.lastOrder.items.map(i => i.title).join(", "), 30)}
                 </span>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs break-words bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xl">
-                <p>{itemsText}</p>
+                <p>{c.lastOrder.items.map(i => i.title).join(", ")}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
