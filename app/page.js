@@ -7,7 +7,24 @@ import { CustomerTable } from "@/components/CustomerTable";
 import { ExportButton } from "@/components/ExportButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Loader2 } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { RefreshCcw, Loader2, Users, AlertCircle, Clock, CalendarCheck } from "lucide-react";
+
+function StatCard({ title, value, icon: Icon, colorClass }) {
+  return (
+    <div className="bg-card border border-border/50 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="text-muted-foreground text-sm font-medium mb-1">{title}</p>
+          <h3 className="text-2xl font-bold tracking-tight">{value}</h3>
+        </div>
+        <div className={`p-2.5 rounded-xl ${colorClass} opacity-80 group-hover:opacity-100 transition-opacity`}>
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function DashboardContent() {
   const searchParams = useSearchParams();
@@ -77,89 +94,131 @@ function DashboardContent() {
     }
   };
 
-  const uniqueTags = Array.from(
-    new Set(data.customers.flatMap((c) => c.tags || []))
-  ).sort();
+  const overdueCount = data.customers.filter(c => c.followupStatus === "overdue").length;
+  const dueTodayCount = data.customers.filter(c => c.followupStatus === "due-today").length;
+  const upcomingCount = data.customers.filter(c => c.followupStatus === "upcoming").length;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/40 via-[#0a0a0a] to-[#0a0a0a] text-white p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-r from-zinc-100 via-zinc-400 to-zinc-600">
-            XAXU Telesales Dashboard
-          </h1>
-          <p className="text-zinc-500 font-medium tracking-wide text-sm flex items-center gap-2">
-            Showing{" "}
-            <span className="text-zinc-300 font-semibold">
-              {data.customers.length}
-            </span>{" "}
-            customer{data.customers.length !== 1 ? "s" : ""}
-            {(filterLoading || loadingMore) && (
-              <span className="inline-flex items-center gap-1 text-zinc-500 text-xs">
-                <Loader2 className="w-3 h-3 animate-spin" /> updating...
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={() => window.location.reload()}
-            variant="outline"
-            className="bg-black/50 border-zinc-800 text-zinc-300 hover:text-white transition-colors"
-          >
-            <RefreshCcw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      <Filters uniqueTags={uniqueTags} />
-
-      {error ? (
-        <div className="bg-red-950/50 border border-red-900 text-red-400 p-4 rounded-lg mb-6">
-          <p className="font-medium">Failed to load data from Shopify</p>
-          <p className="text-sm mt-1">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 text-sm underline opacity-80 hover:opacity-100"
-          >
-            Retry
-          </button>
-        </div>
-      ) : initialLoading ? (
-        <div className="space-y-3">
-          {[...Array(8)].map((_, i) => (
-            <Skeleton key={i} className="h-[56px] w-full bg-zinc-900/50 rounded-lg" />
-          ))}
-        </div>
-      ) : (
-        <div className={`space-y-6 transition-opacity duration-200 ${filterLoading ? "opacity-60" : "opacity-100"}`}>
-          <CustomerTable customers={data.customers} />
-          
-          <div className="flex flex-col items-center gap-4 pt-4 border-t border-zinc-800/50">
-            {data.hasNextPage && (
-              <Button 
-                onClick={handleLoadMore} 
-                disabled={loadingMore}
-                variant="outline"
-                className="w-full md:w-64 bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 text-zinc-300"
-              >
-                {loadingMore ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load More Customers"
-                )}
-              </Button>
-            )}
-            <div className="flex justify-end w-full">
-              <ExportButton data={data.customers} />
-            </div>
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <div className="max-w-[1400px] mx-auto px-6 py-10">
+        {/* Header Section */}
+        <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-foreground to-foreground/60">
+              Telesales Dashboard
+            </h1>
+            <p className="text-muted-foreground font-medium text-sm flex items-center gap-2">
+              Managing <span className="text-foreground font-bold">{data.customers.length}</span> active prospects
+              {(filterLoading || loadingMore) && (
+                <span className="inline-flex items-center gap-1 text-primary text-xs animate-pulse">
+                  <Loader2 className="w-3 h-3 animate-spin" /> syncing...
+                </span>
+              )}
+            </p>
           </div>
+          
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="rounded-xl border-border/50 hover:bg-accent transition-all duration-300"
+            >
+              <RefreshCcw className="w-4 h-4 mr-2" />
+              Sync
+            </Button>
+          </div>
+        </header>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard 
+            title="Total Loaded" 
+            value={data.customers.length} 
+            icon={Users} 
+            colorClass="bg-blue-500/10 text-blue-500"
+          />
+          <StatCard 
+            title="Overdue" 
+            value={overdueCount} 
+            icon={AlertCircle} 
+            colorClass="bg-red-500/10 text-red-500"
+          />
+          <StatCard 
+            title="Due Today" 
+            value={dueTodayCount} 
+            icon={Clock} 
+            colorClass="bg-amber-500/10 text-amber-500"
+          />
+          <StatCard 
+            title="Upcoming" 
+            value={upcomingCount} 
+            icon={CalendarCheck} 
+            colorClass="bg-emerald-500/10 text-emerald-500"
+          />
         </div>
-      )}
+
+        {/* Filters Section */}
+        <section className="mb-8">
+          <Filters />
+        </section>
+
+        {/* Main Content */}
+        <main>
+          {error ? (
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive p-6 rounded-2xl mb-6 flex flex-col items-center">
+              <p className="font-semibold text-lg">Communication error with Shopify</p>
+              <p className="text-sm opacity-80 mt-1">{error}</p>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="mt-4 border-destructive/20 hover:bg-destructive/10 transition-colors"
+              >
+                Attempt Recovery
+              </Button>
+            </div>
+          ) : initialLoading ? (
+            <div className="space-y-4">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-2xl opacity-50" />
+              ))}
+            </div>
+          ) : (
+            <div className={`space-y-8 transition-all duration-500 ${filterLoading ? "opacity-50 blur-[1px]" : "opacity-100 blur-0"}`}>
+              <div className="bg-card border border-border/40 rounded-3xl shadow-xl overflow-hidden">
+                <CustomerTable customers={data.customers} />
+              </div>
+              
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-12">
+                {data.hasNextPage ? (
+                  <Button 
+                    onClick={handleLoadMore} 
+                    disabled={loadingMore}
+                    variant="secondary"
+                    className="w-full md:w-80 rounded-2xl h-12 font-semibold shadow-sm hover:shadow-md transition-all active:scale-95"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Retrieve More Records"
+                    )}
+                  </Button>
+                ) : (
+                  <div className="text-muted-foreground text-sm font-medium">
+                    Reached end of the list
+                  </div>
+                )}
+                <div className="flex items-center gap-4">
+                  <ExportButton data={data.customers} />
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

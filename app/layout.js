@@ -1,5 +1,6 @@
 import { Outfit } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -14,11 +15,18 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${outfit.variable} font-sans antialiased bg-[#0a0a0a] text-zinc-100 selection:bg-blue-500/30`}>
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${outfit.variable} font-sans antialiased bg-background text-foreground selection:bg-primary/20 transition-colors duration-300`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -63,86 +63,91 @@ export function Filters({ uniqueTags = [] }) {
   const dateTo = dateToStr ? parse(dateToStr, "yyyy-MM-dd", new Date()) : null;
 
   return (
-    <div className="flex flex-col gap-4 mb-8 p-5 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/60 rounded-xl shadow-2xl">
-      <div className="flex flex-wrap gap-4 items-end">
+    <div className="bg-card/50 backdrop-blur-md border border-border/40 p-6 rounded-3xl shadow-sm space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center gap-6">
         
-        <div className="flex-1 min-w-[200px]">
-          <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Search</label>
-          <Input 
-            placeholder="Name, email, phone..." 
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="bg-black/50 border-zinc-800 focus-visible:ring-zinc-700"
-          />
+        <div className="flex-1 space-y-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Search Database</label>
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Name, email, phone..." 
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 h-11 bg-background/50 border-border/50 rounded-2xl focus-visible:ring-primary/20 transition-all"
+            />
+          </div>
         </div>
 
-        <div className="min-w-[150px]">
-          <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Status</label>
+        <div className="min-w-[200px] space-y-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Status Filter</label>
           <Select value={status} onValueChange={(v) => updateFilter("status", v)}>
-            <SelectTrigger className="bg-black/50 border-zinc-800">
-              <SelectValue placeholder="Status" />
+            <SelectTrigger className="h-11 bg-background/50 border-border/50 rounded-2xl focus:ring-primary/20">
+              <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
-            <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="overdue">Overdue</SelectItem>
-              <SelectItem value="due-today">Due Today</SelectItem>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="done">Done</SelectItem>
+            <SelectContent className="rounded-2xl border-border/50 shadow-xl overflow-hidden">
+              <SelectItem value="all">All Customers</SelectItem>
+              <SelectItem value="overdue" className="text-red-500 font-medium focus:text-red-600">Overdue Only</SelectItem>
+              <SelectItem value="due-today" className="text-amber-500 font-medium focus:text-amber-600">Due Today</SelectItem>
+              <SelectItem value="upcoming" className="text-emerald-500 font-medium focus:text-emerald-600">Upcoming</SelectItem>
+              <SelectItem value="done" className="opacity-60">Completed</SelectItem>
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-4 items-end mt-2">
-        <div className="flex gap-3">
-          <div className="min-w-[150px]">
-            <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Order From</label>
+        <div className="flex flex-col sm:flex-row items-end gap-4">
+          <div className="space-y-1.5 flex-1 sm:flex-none">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Order From</label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={`w-[150px] justify-start text-left font-normal bg-black/50 border-zinc-800 hover:bg-zinc-800 hover:text-white transition-colors ${!dateFromStr && "text-zinc-500"}`}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                <Button variant="outline" className={`h-11 min-w-[160px] w-full justify-start text-left font-medium bg-background/50 border-border/50 rounded-2xl hover:bg-accent transition-all ${!dateFromStr && "text-muted-foreground"}`}>
+                  <CalendarIcon className="mr-2.5 h-4 w-4 opacity-70" />
                   {dateFrom && isValid(dateFrom) ? format(dateFrom, "MMM d, yyyy") : <span>Pick date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 border-zinc-800 bg-zinc-900">
+              <PopoverContent className="w-auto p-0 border-border/50 rounded-3xl overflow-hidden shadow-2xl" align="start">
                 <Calendar 
                   mode="single" 
                   selected={dateFrom || undefined}
                   onSelect={(d) => updateFilter("dateFrom", d ? format(d, "yyyy-MM-dd") : "")}
                   initialFocus
-                  className="bg-zinc-900 text-zinc-100 placeholder-zinc-400"
+                  className="bg-card text-foreground"
                 />
               </PopoverContent>
             </Popover>
           </div>
           
-          <div className="min-w-[150px]">
-            <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Order To</label>
+          <div className="space-y-1.5 flex-1 sm:flex-none">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Order To</label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={`w-[150px] justify-start text-left font-normal bg-black/50 border-zinc-800 hover:bg-zinc-800 hover:text-white transition-colors ${!dateToStr && "text-zinc-500"}`}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                <Button variant="outline" className={`h-11 min-w-[160px] w-full justify-start text-left font-medium bg-background/50 border-border/50 rounded-2xl hover:bg-accent transition-all ${!dateToStr && "text-muted-foreground"}`}>
+                  <CalendarIcon className="mr-2.5 h-4 w-4 opacity-70" />
                   {dateTo && isValid(dateTo) ? format(dateTo, "MMM d, yyyy") : <span>Pick date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 border-zinc-800 bg-zinc-900">
+              <PopoverContent className="w-auto p-0 border-border/50 rounded-3xl overflow-hidden shadow-2xl" align="start">
                 <Calendar 
                   mode="single" 
                   selected={dateTo || undefined}
                   onSelect={(d) => updateFilter("dateTo", d ? format(d, "yyyy-MM-dd") : "")}
                   initialFocus
-                  className="bg-zinc-900 text-zinc-100 placeholder-zinc-400"
+                  className="bg-card text-foreground"
                 />
               </PopoverContent>
             </Popover>
           </div>
         </div>
 
-        <div className="flex-1"></div>
-
-        <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">
-          <FilterX className="mr-2 h-4 w-4" /> Reset Filters
-        </Button>
+        <div className="lg:mt-auto">
+          <Button 
+            variant="ghost" 
+            onClick={resetFilters} 
+            className="h-11 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-accent px-5 transition-all font-semibold"
+          >
+            <FilterX className="mr-2 h-4 w-4" /> Reset
+          </Button>
+        </div>
       </div>
     </div>
   );
