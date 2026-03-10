@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, FilterX, Search } from "lucide-react";
-import { format } from "date-fns";
-import { Checkbox } from "@/components/ui/checkbox";
+import { format, parse, isValid } from "date-fns";
 
 export function Filters({ uniqueTags = [] }) {
   const router = useRouter();
@@ -57,8 +56,11 @@ export function Filters({ uniqueTags = [] }) {
   };
 
   const status = searchParams.get("status") || "all";
-  const dateFrom = searchParams.get("dateFrom");
-  const dateTo = searchParams.get("dateTo");
+  const dateFromStr = searchParams.get("dateFrom");
+  const dateToStr = searchParams.get("dateTo");
+
+  const dateFrom = dateFromStr ? parse(dateFromStr, "yyyy-MM-dd", new Date()) : null;
+  const dateTo = dateToStr ? parse(dateToStr, "yyyy-MM-dd", new Date()) : null;
 
   return (
     <div className="flex flex-col gap-4 mb-8 p-5 bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/60 rounded-xl shadow-2xl">
@@ -97,16 +99,16 @@ export function Filters({ uniqueTags = [] }) {
             <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Order From</label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={`w-[150px] justify-start text-left font-normal bg-black/50 border-zinc-800 hover:bg-zinc-800 hover:text-white transition-colors ${!dateFrom && "text-zinc-500"}`}>
+                <Button variant="outline" className={`w-[150px] justify-start text-left font-normal bg-black/50 border-zinc-800 hover:bg-zinc-800 hover:text-white transition-colors ${!dateFromStr && "text-zinc-500"}`}>
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFrom ? format(new Date(dateFrom), "MMM d, yyyy") : <span>Pick date</span>}
+                  {dateFrom && isValid(dateFrom) ? format(dateFrom, "MMM d, yyyy") : <span>Pick date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 border-zinc-800 bg-zinc-900">
                 <Calendar 
                   mode="single" 
-                  selected={dateFrom ? new Date(dateFrom) : undefined}
-                  onSelect={(d) => updateFilter("dateFrom", d ? d.toISOString() : "")}
+                  selected={dateFrom || undefined}
+                  onSelect={(d) => updateFilter("dateFrom", d ? format(d, "yyyy-MM-dd") : "")}
                   initialFocus
                   className="bg-zinc-900 text-zinc-100 placeholder-zinc-400"
                 />
@@ -118,16 +120,16 @@ export function Filters({ uniqueTags = [] }) {
             <label className="text-xs font-medium text-zinc-400 mb-1.5 block">Order To</label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={`w-[150px] justify-start text-left font-normal bg-black/50 border-zinc-800 hover:bg-zinc-800 hover:text-white transition-colors ${!dateTo && "text-zinc-500"}`}>
+                <Button variant="outline" className={`w-[150px] justify-start text-left font-normal bg-black/50 border-zinc-800 hover:bg-zinc-800 hover:text-white transition-colors ${!dateToStr && "text-zinc-500"}`}>
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateTo ? format(new Date(dateTo), "MMM d, yyyy") : <span>Pick date</span>}
+                  {dateTo && isValid(dateTo) ? format(dateTo, "MMM d, yyyy") : <span>Pick date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 border-zinc-800 bg-zinc-900">
                 <Calendar 
                   mode="single" 
-                  selected={dateTo ? new Date(dateTo) : undefined}
-                  onSelect={(d) => updateFilter("dateTo", d ? d.toISOString() : "")}
+                  selected={dateTo || undefined}
+                  onSelect={(d) => updateFilter("dateTo", d ? format(d, "yyyy-MM-dd") : "")}
                   initialFocus
                   className="bg-zinc-900 text-zinc-100 placeholder-zinc-400"
                 />

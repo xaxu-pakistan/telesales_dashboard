@@ -24,46 +24,37 @@ export async function GET(request) {
     const dateTo = searchParams.get("dateTo") || null;
     const status = searchParams.get("status") || "all";
     
+    const MANDATORY_CUTOFF = "2024-11-01";
     const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
     
-    // Default cutoff if no date filter provided
-    const defaultDate = "2025-11-01";
-    
-    let queryStr = "orders_count:>=2";
+    const dateAtOffset = (days) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - days);
+        return d.toISOString().split("T")[0];
+    };
 
-    // Optimization: Add date constraints to Shopify query based on status to reduce search space
-    if (status === "overdue") {
-        // At minimum, overdue means last order was at least 7 days ago
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
-        queryStr += ` AND last_order_date:<=${sevenDaysAgoStr}`;
-    } else if (status === "due-today" || status === "upcoming") {
-        // These statuses usually mean last order was within last 45 days
-        const fortyFiveDaysAgo = new Date(today);
-        fortyFiveDaysAgo.setDate(today.getDate() - 45);
-        const fortyFiveDaysAgoStr = fortyFiveDaysAgo.toISOString().split("T")[0];
-        queryStr += ` AND last_order_date:>=${fortyFiveDaysAgoStr}`;
-    }
+    let conditions = ["orders_count:>=2"];
 
-    if (dateFrom) {
-      const from = dateFrom.split("T")[0];
-      queryStr += ` AND last_order_date:>=${from}`;
-    } else if (!queryStr.includes("last_order_date:>=")) {
-      // Apply default cutoff only if no other lower bound is set
-      queryStr += ` AND last_order_date:>=${defaultDate}`;
-    }
+    // 1. Handle "Order From" and Baseline
+    let effectiveFrom = dateFrom ? dateFrom.split("T")[0] : MANDATORY_CUTOFF;
+    conditions.push(`last_order_date:>=${effectiveFrom}`);
 
+    // 2. Handle "Order To"
     if (dateTo) {
-      const to = dateTo.split("T")[0];
-      queryStr += ` AND last_order_date:<=${to}`;
+        const to = dateTo.split("T")[0];
+        conditions.push(`last_order_date:<=${to}`);
     }
-    
+
+    // ... (rest of the query logic) ...
+    // ... (rest of the query logic) ...
+
+    // 4. Search term with quoting for safety
     if (search) {
-      // Shopify customer search supports name, email, phone
-      queryStr += ` AND (name:${search}* OR email:${search}* OR phone:${search}*)`;
+      const s = search.replace(/"/g, '\\"');
+      conditions.push(`(name:"${s}*" OR email:"${s}*" OR phone:"${s}*")`);
     }
+
+    const queryStr = conditions.join(" AND ");
 
     const { customers, hasNextPage, endCursor } = await fetchCustomers({ 
       cursor, 
@@ -72,7 +63,7 @@ export async function GET(request) {
 
     const followupsDb = await getFollowupsDb();
     
-    // Enrich with follow-up logic (this part remains local for now as it uses local DB)
+    // Enrich with follow-up logic
     const enriched = customers.map(customer => {
       try {
         const adminUrl = `https://${process.env.SHOPIFY_STORE}/admin/customers/${customer.id}`;
@@ -95,7 +86,26 @@ export async function GET(request) {
         console.error("Error enriching customer:", customer.id, itemErr);
         return null;
       }
-    }).filter(c => c !== null);
+    }).filter(c => {
+        if (!c) return false;
+        if (!c.lastOrder || !c.lastOrder.processedAt) return false;
+        
+        const orderDateStr = c.lastOrder.processedAt.split("T")[0];
+        
+        // If user picked a date, enforce it strictly
+        if (dateFrom) {
+            if (orderDateStr < dateFrom.split("T")[0]) return false;
+        } else {
+            // Otherwise use the default baseline
+            if (orderDateStr < MANDATORY_CUTOFF) return false;
+        }
+
+        if (dateTo) {
+            if (orderDateStr > dateTo.split("T")[0]) return false;
+        }
+
+        return true;
+    });
 
     const filtered = status === "all" ? enriched : enriched.filter(c => c.followupStatus === status);
 

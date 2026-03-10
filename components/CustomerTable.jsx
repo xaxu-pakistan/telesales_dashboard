@@ -4,8 +4,7 @@ import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { FollowupBadge } from "./FollowupBadge";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, PhoneIcon, MailIcon, UserIcon, BoxIcon, CalendarClockIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarIcon, PhoneIcon, UserIcon, BoxIcon, CalendarClockIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const ITEMS_PER_PAGE = 50;
@@ -46,23 +45,6 @@ function CustomerRow({ index, c, loadingId, onMarkDone }) {
       {/* Phone */}
       <div className="w-32 shrink-0 truncate pr-4 text-sm text-zinc-400 flex items-center gap-1.5">
         {c.phone ? <><PhoneIcon className="w-3 h-3 text-zinc-500 shrink-0" /><span className="truncate">{c.phone}</span></> : "—"}
-      </div>
-
-      {/* Email */}
-      <div className="w-48 shrink-0 truncate pr-4 text-sm text-zinc-400 flex items-center gap-1.5">
-        {c.email ? <><MailIcon className="w-3 h-3 text-zinc-500 shrink-0" /><span className="truncate">{c.email}</span></> : "—"}
-      </div>
-
-      {/* Tags */}
-      <div className="w-32 shrink-0 flex gap-1 flex-wrap pr-4 items-center">
-        {c.tags && c.tags.length > 0 ? (
-          <>
-            {c.tags.slice(0, 2).map(t => (
-              <Badge key={t} variant="secondary" className="text-[10px] px-1.5 py-0 bg-zinc-800 text-zinc-300 border-zinc-700">{t}</Badge>
-            ))}
-            {c.tags.length > 2 && <span className="text-xs text-zinc-500">+{c.tags.length - 2}</span>}
-          </>
-        ) : <span className="text-zinc-600">—</span>}
       </div>
 
       {/* Note */}
@@ -207,8 +189,6 @@ export function CustomerTable({ customers }) {
           <div className="w-12 shrink-0">#</div>
           <div className="w-48 shrink-0 pr-4">Customer Name</div>
           <div className="w-32 shrink-0 pr-4">Phone</div>
-          <div className="w-48 shrink-0 pr-4">Email</div>
-          <div className="w-32 shrink-0 pr-4">Tags</div>
           <div className="w-48 shrink-0 pr-4">Note</div>
           <div className="w-24 shrink-0 pr-4">Last Order</div>
           <div className="w-32 shrink-0 pr-4">Order Date</div>
