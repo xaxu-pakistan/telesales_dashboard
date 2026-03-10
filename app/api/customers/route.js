@@ -70,7 +70,11 @@ export async function GET(request) {
         let followupDate = null;
         
         if (customer.lastOrder) {
-          followupDate = calculateFollowupDate(customer.lastOrder.processedAt, customer.lastOrder.amount);
+          followupDate = calculateFollowupDate(
+            customer.lastOrder.processedAt, 
+            customer.lastOrder.amount,
+            customer.lastOrder.items
+          );
         }
         
         const followupStatus = getFollowupStatus(followupDate, !!followupsDb[customer.id]);

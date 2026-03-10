@@ -86,11 +86,11 @@ function CustomerRow({ index, c, loadingId, onMarkDone }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="cursor-help border-b border-dotted border-zinc-600 truncate max-w-full hover:text-zinc-200 transition-colors">
-                  {truncate(c.lastOrder.items.map(i => i.title).join(", "), 30)}
+                  {truncate(c.lastOrder.items.map(i => `${i.title}${i.variantTitle && i.variantTitle !== "Default Title" ? ` (${i.variantTitle})` : ""} x${i.quantity}`).join(", "), 30)}
                 </span>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs break-words bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xl">
-                <p>{c.lastOrder.items.map(i => i.title).join(", ")}</p>
+                <p>{c.lastOrder.items.map(i => `${i.title}${i.variantTitle && i.variantTitle !== "Default Title" ? ` (${i.variantTitle})` : ""} x${i.quantity}`).join(", ")}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
