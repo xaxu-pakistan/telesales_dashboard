@@ -18,8 +18,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Edit2,
+  Check,
+  X,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Input } from "./ui/input";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -28,10 +33,31 @@ function truncate(str, len = 40) {
   return str.length > len ? str.substring(0, len) + "..." : str;
 }
 
-function CustomerRow({ index, c, loadingId, onMarkDone }) {
+function CustomerRow({ index, c, loadingId, onMarkDone, onUpdateNote }) {
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteValue, setNoteValue] = useState(c.note || "");
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
   const isOverdue = c.followupStatus === "overdue";
   const isDueToday = c.followupStatus === "due-today";
   const isDone = c.followupStatus === "done";
+
+  const handleSaveNote = async () => {
+    setIsSavingNote(true);
+    try {
+      await onUpdateNote(c.customerId, noteValue);
+      setIsEditingNote(false);
+    } catch (err) {
+      alert("Failed to update note");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleCancelNote = () => {
+    setNoteValue(c.note || "");
+    setIsEditingNote(false);
+  };
 
   let bgClass = "hover:bg-accent/40 transition-all duration-300";
   if (isOverdue)
@@ -84,24 +110,72 @@ function CustomerRow({ index, c, loadingId, onMarkDone }) {
       </td>
 
       {/* Note */}
-      <td className="px-6 py-4 max-w-[200px]">
-        {c.note ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <span className="text-sm text-muted-foreground cursor-help truncate block">
-                    {truncate(c.note)}
-                  </span>
-                }
-              />
-              <TooltipContent className="max-w-xs p-3 rounded-2xl border-border/50 shadow-2xl">
-                <p className="text-sm leading-relaxed">{c.note}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      <td className="px-6 py-4 max-w-[240px]">
+        {isEditingNote ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={noteValue}
+              onChange={(e) => setNoteValue(e.target.value)}
+              className="h-8 text-xs rounded-lg"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveNote();
+                if (e.key === "Escape") handleCancelNote();
+              }}
+              disabled={isSavingNote}
+            />
+            <div className="flex gap-1 shrink-0">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                onClick={handleSaveNote}
+                disabled={isSavingNote}
+              >
+                {isSavingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                onClick={handleCancelNote}
+                disabled={isSavingNote}
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
         ) : (
-          <span className="text-muted-foreground opacity-30">—</span>
+          <div className="group/note flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              {c.note ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <span className="text-sm text-muted-foreground cursor-help truncate block">
+                          {truncate(c.note)}
+                        </span>
+                      }
+                    />
+                    <TooltipContent className="max-w-xs p-3 rounded-2xl border-border/50 shadow-2xl">
+                      <p className="text-sm leading-relaxed">{c.note}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <span className="text-muted-foreground opacity-30">—</span>
+              )}
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 opacity-0 group-hover/note:opacity-100 transition-opacity hover:bg-accent rounded-lg"
+              onClick={() => setIsEditingNote(true)}
+            >
+              <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+            </Button>
+          </div>
         )}
       </td>
 
@@ -226,7 +300,7 @@ function CustomerRow({ index, c, loadingId, onMarkDone }) {
   );
 }
 
-export function CustomerTable({ customers }) {
+export function CustomerTable({ customers, onNoteUpdated }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -250,6 +324,25 @@ export function CustomerTable({ customers }) {
       alert("Failed to update status");
     } finally {
       setLoadingId(null);
+    }
+  };
+
+  const handleUpdateNote = async (customerId, note) => {
+    try {
+      // 1. Update UI Instantly (Optimistic Update)
+      if (onNoteUpdated) onNoteUpdated(customerId, note);
+
+      const res = await fetch(`/api/customers/${customerId}/note`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+      if (!res.ok) throw new Error("Failed to update note");
+      
+    } catch (e) {
+      console.error(e);
+      alert("Failed to sync note with Shopify. Please retry.");
+      throw e;
     }
   };
 
@@ -305,6 +398,7 @@ export function CustomerTable({ customers }) {
                 c={c}
                 loadingId={loadingId}
                 onMarkDone={handleMarkDone}
+                onUpdateNote={handleUpdateNote}
               />
             ))}
           </tbody>

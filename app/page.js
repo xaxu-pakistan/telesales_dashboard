@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Filters } from "@/components/Filters";
 import { CustomerTable } from "@/components/CustomerTable";
 import { ExportButton } from "@/components/ExportButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { RefreshCcw, Loader2, Users, AlertCircle, Clock, CalendarCheck } from "lucide-react";
+import { RefreshCcw, Loader2, Users, AlertCircle, Clock, CalendarCheck, LogOut } from "lucide-react";
 
 function StatCard({ title, value, icon: Icon, colorClass }) {
   return (
@@ -28,6 +28,7 @@ function StatCard({ title, value, icon: Icon, colorClass }) {
 
 function DashboardContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [data, setData] = useState({ customers: [], hasNextPage: false, endCursor: null });
   const [initialLoading, setInitialLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
@@ -35,42 +36,63 @@ function DashboardContent() {
   const [error, setError] = useState(null);
   const isFirstLoad = useRef(true);
 
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  };
+
   const queryString = searchParams.toString();
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchData = async (isSilent = false) => {
+    if (!isSilent) {
+      if (isFirstLoad.current) setInitialLoading(true);
+      else setFilterLoading(true);
+    }
+    setError(null);
 
-    async function fetchData() {
-      if (isFirstLoad.current) {
-        setInitialLoading(true);
-      } else {
-        setFilterLoading(true);
-      }
-      setError(null);
-
-      try {
-        const res = await fetch(`/api/customers${queryString ? `?${queryString}` : ""}`);
-        if (!res.ok) throw new Error("Failed to fetch data");
-        const json = await res.json();
-        if (!cancelled) {
-          setData(json);
-        }
-      } catch (err) {
-        if (!cancelled) setError(err.message);
-      } finally {
-        if (!cancelled) {
-          setInitialLoading(false);
-          setFilterLoading(false);
-          isFirstLoad.current = false;
-        }
+    try {
+      const res = await fetch(`/api/customers${queryString ? `?${queryString}` : ""}`);
+      if (!res.ok) throw new Error("Failed to fetch data");
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      if (!isSilent) setError(err.message);
+    } finally {
+      if (!isSilent) {
+        setInitialLoading(false);
+        setFilterLoading(false);
+        isFirstLoad.current = false;
       }
     }
+  };
 
+  // Initial and Filter-based fetch
+  useEffect(() => {
     fetchData();
-    return () => {
-      cancelled = true;
-    };
   }, [queryString]);
+
+  // Multi-agent Sync: Poll every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData(true); // Silent refresh
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [queryString]);
+
+  const handleUpdateNoteLocal = (customerId, note) => {
+    setData(prev => ({
+      ...prev,
+      customers: prev.customers.map(c => 
+        (c.customerId === customerId || c.id === customerId) ? { ...c, note } : c
+      )
+    }));
+  };
+
 
   const handleLoadMore = async () => {
     if (!data.endCursor || loadingMore) return;
@@ -126,6 +148,14 @@ function DashboardContent() {
             >
               <RefreshCcw className="w-4 h-4 mr-2" />
               Sync
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-300"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
             </Button>
           </div>
         </header>
@@ -186,7 +216,10 @@ function DashboardContent() {
           ) : (
             <div className={`space-y-8 transition-all duration-500 ${filterLoading ? "opacity-50 blur-[1px]" : "opacity-100 blur-0"}`}>
               <div className="bg-card border border-border/40 rounded-3xl shadow-xl overflow-hidden">
-                <CustomerTable customers={data.customers} />
+                <CustomerTable 
+                  customers={data.customers} 
+                  onNoteUpdated={handleUpdateNoteLocal}
+                />
               </div>
               
               <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-12">
