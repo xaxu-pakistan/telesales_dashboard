@@ -59,7 +59,34 @@ function DashboardContent() {
       const res = await fetch(`/api/customers${queryString ? `?${queryString}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch data");
       const json = await res.json();
-      setData(json);
+      
+      if (isSilent) {
+        // Silent refresh: Update existing customers and preserve the rest
+        setData(prev => {
+          const updatedCustomers = [...prev.customers];
+          
+          json.customers.forEach(newCust => {
+            const index = updatedCustomers.findIndex(c => c.customerId === newCust.customerId);
+            if (index !== -1) {
+              // Update existing
+              updatedCustomers[index] = { ...updatedCustomers[index], ...newCust };
+            } else {
+              // Prepend new ones if they are truly new (at the top)
+              updatedCustomers.unshift(newCust);
+            }
+          });
+
+          return {
+            ...json, // hasNextPage and endCursor from the latest first-page call are NOT used here
+            customers: updatedCustomers,
+            hasNextPage: prev.hasNextPage, // Keep pagination state
+            endCursor: prev.endCursor
+          };
+        });
+      } else {
+        // Normal fetch: Replace everything
+        setData(json);
+      }
     } catch (err) {
       if (!isSilent) setError(err.message);
     } finally {
@@ -79,10 +106,12 @@ function DashboardContent() {
   // Multi-agent Sync: Poll every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchData(true); // Silent refresh
+      if (!loadingMore) {
+        fetchData(true); // Silent refresh
+      }
     }, 10000);
     return () => clearInterval(interval);
-  }, [queryString]);
+  }, [queryString, loadingMore]);
 
   const handleUpdateNoteLocal = (customerId, note) => {
     setData(prev => ({
