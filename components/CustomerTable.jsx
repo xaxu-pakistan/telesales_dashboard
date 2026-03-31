@@ -8,6 +8,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { FollowupBadge } from "./FollowupBadge";
+import { OrderTrackingBadge } from "./OrderTrackingBadge";
 import { Button } from "@/components/ui/button";
 import {
   CalendarIcon,
@@ -244,6 +245,15 @@ function CustomerRow({ index, c, loadingId, onMarkDone, onUpdateNote }) {
         )}
       </td>
 
+      {/* Order Tracking */}
+      <td className="px-6 py-4 whitespace-nowrap">
+        <OrderTrackingBadge 
+          trackingNumbers={c.lastOrder?.trackingNumbers} 
+          orderName={c.lastOrder?.name} 
+          trackingCompany={c.lastOrder?.trackingCompany}
+        />
+      </td>
+
       {/* Amount */}
       <td className="px-6 py-4">
         <span className="text-sm font-bold tabular-nums">
@@ -383,6 +393,7 @@ export function CustomerTable({ customers, onNoteUpdated }) {
                 Latest Transaction
               </th>
               <th className="px-6 py-4 text-left font-bold">Order Contents</th>
+              <th className="px-6 py-4 text-center font-bold">Order Tracking</th>
               <th className="px-6 py-4 text-left font-bold">Revenue</th>
               <th className="px-6 py-4 text-left font-bold">
                 Follow-up Schedule
