@@ -99,7 +99,9 @@ export function Filters({ uniqueTags = [] }) {
           <div className="space-y-1.5 flex-1 sm:flex-none">
             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Order From</label>
             <Popover>
-              <PopoverTrigger render={(props) => (
+              <PopoverTrigger 
+                nativeButton={false}
+                render={(props) => (
                 <Button {...props} variant="outline" className={`h-11 min-w-[160px] w-full justify-start text-left font-medium bg-background/50 border-border/50 rounded-2xl hover:bg-accent transition-all ${!dateFromStr && "text-muted-foreground"}`}>
                   <CalendarIcon className="mr-2.5 h-4 w-4 opacity-70" />
                   {dateFrom && isValid(dateFrom) ? format(dateFrom, "MMM d, yyyy") : <span>Pick date</span>}
@@ -120,7 +122,9 @@ export function Filters({ uniqueTags = [] }) {
           <div className="space-y-1.5 flex-1 sm:flex-none">
             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground ml-1">Order To</label>
             <Popover>
-              <PopoverTrigger render={(props) => (
+              <PopoverTrigger 
+                nativeButton={false}
+                render={(props) => (
                 <Button {...props} variant="outline" className={`h-11 min-w-[160px] w-full justify-start text-left font-medium bg-background/50 border-border/50 rounded-2xl hover:bg-accent transition-all ${!dateToStr && "text-muted-foreground"}`}>
                   <CalendarIcon className="mr-2.5 h-4 w-4 opacity-70" />
                   {dateTo && isValid(dateTo) ? format(dateTo, "MMM d, yyyy") : <span>Pick date</span>}

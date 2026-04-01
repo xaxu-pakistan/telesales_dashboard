@@ -14,22 +14,26 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
 
   const companyLower = trackingCompany?.toLowerCase() || "";
   const isPostEx = companyLower.includes("postex") || companyLower.includes("postx");
+  const isTrax = companyLower.includes("trax") || companyLower.includes("sonic") || companyLower.includes("trax logistics");
+  const isSonic = companyLower.includes("sonic");
   const hasTracking = trackingNumbers?.length > 0;
   
   // Rule 1: If it's fulfilled with another carrier, show that carrier's name
-  if (trackingCompany && !isPostEx) {
+  if (trackingCompany && !isPostEx && !isTrax) {
     return <span className="text-muted-foreground opacity-30 text-xs italic">{trackingCompany}</span>;
   }
 
-  // Rule 2: ONLY show the Track button if it's explicitly a PostEx order
+  // Rule 2: ONLY show the Track button if it's explicitly a PostEx or Trax order
   // This hides the button for unfulfilled/unbooked orders where trackingCompany is null
-  if (!isPostEx) {
+  if (!isPostEx && !isTrax) {
     return <span className="text-muted-foreground opacity-30 text-xs">—</span>;
   }
 
+  const carrierName = isPostEx ? "PostEx" : isSonic ? "Sonic" : isTrax ? "Trax" : trackingCompany;
+
   const trackingNumber = trackingNumbers?.[0] || "null"; 
 
-  // Derived tracking number to display in the UI (from PostX response if available)
+  // Derived tracking number to display in the UI (from PostX or Trax response if available)
   const distObj = Array.isArray(data?.dist) ? data.dist[0] : data?.dist;
   const realTN = distObj?.trackingNumber || 
                  distObj?.consignmentNumber ||
@@ -39,6 +43,7 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
                  distObj?.cn ||
                  data?.trackingNumber || 
                  data?.barcode ||
+                 data?.details?.tracking_number ||
                  (trackingNumber !== "null" ? trackingNumber : null);
 
   const displayLabel = realTN ? "Tracking Number" : "Order Reference";
@@ -50,8 +55,13 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
     if (open && !data && !loading && !error) {
       setLoading(true);
       try {
-        const query = orderName ? `?orderReference=${encodeURIComponent(orderName)}` : "";
-        const res = await fetch(`/api/tracking/${encodeURIComponent(trackingNumber)}${query}`);
+        const queryParams = new URLSearchParams();
+        if (orderName) queryParams.append("orderReference", orderName);
+        if (isTrax) queryParams.append("carrier", "trax");
+        else if (isPostEx) queryParams.append("carrier", "postex");
+
+        const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
+        const res = await fetch(`/api/tracking/${encodeURIComponent(trackingNumber)}${queryString}`);
         const json = await res.json();
         
         // Save the JSON even if it's an error so we can see debugAttempts
@@ -70,24 +80,31 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
   };
 
   const getStatusColor = (status) => {
-    const s = (status || "").toLowerCase();
+    const s = String(status || "").toLowerCase();
     if (s.includes("delivered")) return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
-    if (s.includes("transit") || s.includes("shipped")) return "text-blue-500 bg-blue-500/10 border-blue-500/20";
-    if (s.includes("failed") || s.includes("return")) return "text-red-500 bg-red-500/10 border-red-500/20";
+    if (s.includes("transit") || s.includes("shipped") || s.includes("progress") || s.includes("dispatch")) return "text-blue-500 bg-blue-500/10 border-blue-500/20";
+    if (s.includes("failed") || s.includes("return") || s.includes("cancel") || s.includes("exception")) return "text-red-500 bg-red-500/10 border-red-500/20";
     return "text-amber-500 bg-amber-500/10 border-amber-500/20";
   };
 
   return (
     <Popover defaultOpen={false} open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger render={
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="h-8 rounded-full px-3 text-xs font-semibold shadow-sm border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-600 transition-colors"
-        >
-          <Package className="w-3.5 h-3.5 mr-1.5" />
-          Track
-        </Button>
+      <PopoverTrigger 
+        nativeButton={false}
+        render={
+          <div className="flex flex-col items-center gap-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 rounded-full px-4 text-[10px] font-bold shadow-sm border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-600 transition-colors uppercase tracking-tight"
+          >
+            <Package className="w-3.5 h-3.5 mr-1.5" />
+            Track
+          </Button>
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+            {carrierName}
+          </span>
+        </div>
       } />
       
       <PopoverContent className="w-80 p-0 overflow-hidden shadow-2xl border-border/50" align="start">
@@ -106,7 +123,7 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
           {loading ? (
             <div className="flex flex-col items-center justify-center py-6 space-y-3">
               <Loader2 className="w-6 h-6 animate-spin text-primary/60" />
-              <p className="text-xs text-muted-foreground animate-pulse">Connecting to PostX...</p>
+              <p className="text-xs text-muted-foreground animate-pulse">Connecting to tracking API...</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -129,31 +146,36 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
                                    data?.transactionStatusHistory || 
                                    data?.transactionHistory ||
                                    data?.trackingHistory || 
+                                   data?.details?.tracking_history ||
                                    data?.data?.history || 
                                    data?.history || 
                                    (Array.isArray(data) ? data : []);
                     
+                    // Prioritize descriptive status strings over numeric status codes
                     const currentStatus = distObj?.transactionStatus ||
+                                         data?.current_status ||
                                          data?.transactionStatus ||
                                          distObj?.orderStatus || 
-                                         distObj?.status || 
                                          data?.orderStatus || 
-                                         data?.status || 
                                          data?.data?.orderStatus ||
                                          data?.data?.status ||
-                                         (history && history.length > 0 ? (history[0].transactionStatus || history[0].status || history[0].statusReason) : null) ||
+                                         (history && history.length > 0 ? (history[0].transactionStatus || history[0].status || history[0].statusReason || history[0].status_description) : null) ||
+                                         distObj?.status || 
+                                         data?.status || 
                                          "Unknown";
                     
+                    const statusStr = String(currentStatus);
+
                     return (
                       <div className={`p-3 rounded-xl border flex items-center gap-3 ${getStatusColor(currentStatus)}`}>
-                        {currentStatus.toLowerCase().includes("delivered") ? (
+                        {statusStr.toLowerCase().includes("delivered") ? (
                           <CheckCircle2 className="w-5 h-5" />
                         ) : (
                           <Package className="w-5 h-5" />
                         )}
                         <div>
                           <p className="text-xs font-bold uppercase tracking-wider opacity-80">Current Status</p>
-                          <p className="text-sm font-semibold">{currentStatus}</p>
+                          <p className="text-sm font-semibold">{statusStr}</p>
                         </div>
                       </div>
                     );
@@ -168,12 +190,27 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
                                  data?.transactionStatusHistory || 
                                  data?.transactionHistory ||
                                  data?.trackingHistory || 
+                                 data?.details?.tracking_history ||
                                  data?.data?.history || 
                                  data?.history || 
                                  (Array.isArray(data) ? data : []);
                     
                     if (history && Array.isArray(history) && history.length > 0) {
-                      const sortedHistory = [...history].reverse();
+                      let sortedHistory = [...history];
+                      
+                      // For general safety, just reverse it if it looks like the first item is older than the last.
+                      if (sortedHistory.length > 1) {
+                         const getTs = (h) => {
+                            const d = h.updatedAt || h.transactionDate || h.transaction_date || h.date || h.created_at || h.transactionStatusDate || h.dateTime || h.date_time || (h.timestamp ? h.timestamp * 1000 : null);
+                            return d ? new Date(d).getTime() : 0;
+                         };
+                         if (getTs(sortedHistory[0]) < getTs(sortedHistory[sortedHistory.length - 1])) {
+                             sortedHistory.reverse();
+                         }
+                      } else {
+                         sortedHistory = [...history].reverse(); // default previous behavior
+                      }
+
                       return (
                         <div className="relative pl-4 space-y-4 before:absolute before:inset-y-2 before:left-[7px] before:w-[2px] before:bg-border/60">
                           {sortedHistory.map((h, idx) => (
@@ -185,7 +222,7 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
                                   <span className="flex items-center gap-1">
                                     <Calendar className="w-3 h-3" /> 
                                     {(() => {
-                                      const dateVal = h.updatedAt || h.transactionDate || h.transaction_date || h.date || h.created_at || h.transactionStatusDate || h.dateTime;
+                                      const dateVal = h.updatedAt || h.transactionDate || h.transaction_date || h.date || h.created_at || h.transactionStatusDate || h.dateTime || h.date_time || (h.timestamp ? h.timestamp * 1000 : null);
                                       return dateVal ? new Date(dateVal).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "N/A";
                                     })()}
                                   </span>
@@ -199,9 +236,9 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
                     return <p className="text-xs text-muted-foreground text-center py-4">Detailed history not available.</p>;
                   })()}
 
-                  {(data?.dist?.trackingUrl || data?.trackingUrl || data?.url || data?.data?.trackingUrl) && (
+                  {(data?.dist?.trackingUrl || data?.trackingUrl || data?.url || data?.data?.trackingUrl || (data?.tracked_carrier === "trax" && data?.details?.tracking_number && `https://sonic.pk/tracking?tracking_number=${data.details.tracking_number}`)) && (
                     <a 
-                      href={data?.dist?.trackingUrl || data?.trackingUrl || data?.url || data?.data?.trackingUrl} 
+                      href={data?.dist?.trackingUrl || data?.trackingUrl || data?.url || data?.data?.trackingUrl || (data?.tracked_carrier === "trax" ? `https://sonic.pk/tracking?tracking_number=${data?.details?.tracking_number}` : "#")} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="mt-4 flex items-center justify-center gap-2 w-full text-xs font-medium text-blue-500 hover:text-blue-600 hover:underline py-2 bg-blue-500/5 rounded-lg transition-colors border border-blue-500/10"
@@ -211,7 +248,7 @@ export function OrderTrackingBadge({ trackingNumbers, orderName, trackingCompany
                   )}
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground text-center py-8">Tracking information not found in PostX database.</p>
+                <p className="text-xs text-muted-foreground text-center py-8">Tracking information not found.</p>
               )}
 
               {/* Debug Toggle (Always available) */}
