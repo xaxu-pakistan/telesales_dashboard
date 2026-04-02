@@ -1,41 +1,74 @@
 import { NextResponse } from "next/server";
+import { jwtVerify } from "jose";
 
-export function middleware(request) {
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "fallback_secret_key_change_in_production"
+);
+
+export async function middleware(request) {
   const authToken = request.cookies.get("auth_token")?.value;
   const isLoginPage = request.nextUrl.pathname === "/login";
   const isApiLogin = request.nextUrl.pathname === "/api/login";
-
-  // Allow login page and API login route
-  if (isLoginPage || isApiLogin) {
-    if (authToken === "authenticated") {
-      // If already authenticated, redirect to home
-      return NextResponse.redirect(new URL("/", request.url));
+  const isSetupApi = request.nextUrl.pathname === "/api/setup";
+  
+  // Allow login page, API login, and setup route
+  if (isLoginPage || isApiLogin || isSetupApi) {
+    if (authToken) {
+      try {
+        await jwtVerify(authToken, JWT_SECRET);
+        return NextResponse.redirect(new URL("/", request.url));
+      } catch (err) {
+        // Token invalid, allow them to stay on login page
+        return NextResponse.next();
+      }
     }
     return NextResponse.next();
   }
 
-  // Redirect to login if not authenticated
-  if (authToken !== "authenticated") {
-    // For API calls (except /api/login), return 401
+  // Check authentication
+  if (!authToken) {
     if (request.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
-    // For pages, redirect to login
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return NextResponse.next();
+  // Verify and Check Authorization
+  try {
+    const { payload } = await jwtVerify(authToken, JWT_SECRET);
+    
+    // RBAC logic for Super Admin routes
+    const isUsersRoute = request.nextUrl.pathname.startsWith("/users");
+    const isApiUsersRoute = request.nextUrl.pathname.startsWith("/api/users");
+
+    if ((isUsersRoute || isApiUsersRoute) && payload.role !== "super admin") {
+      if (isApiUsersRoute) {
+        return NextResponse.json({ success: false, message: "Forbidden: Super Admin only" }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // You could inject user role into headers if needed by server components down the line
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-user-role", payload.role);
+    requestHeaders.set("x-user-email", payload.email);
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  } catch (error) {
+    // Token is invalid/expired
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json({ success: false, message: "Unauthorized - Token Invalid" }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public folder)
-     */
     "/((?!_next/static|_next/image|favicon.ico|public).*)",
   ],
 };
