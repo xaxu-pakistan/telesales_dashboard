@@ -33,6 +33,8 @@ function DashboardContent() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastChecked, setLastChecked] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   const [error, setError] = useState(null);
   const isFirstLoad = useRef(true);
 
@@ -49,6 +51,7 @@ function DashboardContent() {
   const queryString = searchParams.toString();
 
   const fetchData = async (isSilent = false) => {
+    if (isSilent) setIsSyncing(true);
     if (!isSilent) {
       if (isFirstLoad.current) setInitialLoading(true);
       else setFilterLoading(true);
@@ -60,21 +63,43 @@ function DashboardContent() {
       if (!res.ok) throw new Error("Failed to fetch data");
       const json = await res.json();
       
+      setLastChecked(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      
       if (isSilent) {
-        // Silent refresh
-        setData(prev => ({
-          ...json,
-          customers: json.customers, // Replace for now to keep it simple and consistent with MongoDB
-          hasNextPage: json.hasNextPage,
-          endCursor: json.endCursor
-        }));
+        // Intelligent Merge for Silent Refresh
+        setData(prev => {
+          // Create a map of existing customers for fast lookup
+          const customerMap = new Map(prev.customers.map(c => [c.customerId || c.id, c]));
+          
+          // Update/Add new customers from the latest fetch
+          json.customers.forEach(newC => {
+            customerMap.set(newC.customerId || newC.id, newC);
+          });
+          
+          // Convert back to array and sort (to keep "Major Usman" at the top if he just ordered)
+          const merged = Array.from(customerMap.values()).sort((a, b) => {
+            const dateA = new Date(a.lastOrder?.processedAt || 0);
+            const dateB = new Date(b.lastOrder?.processedAt || 0);
+            return dateB - dateA; // Newest first
+          });
+
+          return {
+            ...json,
+            customers: merged,
+            // Keep the pagination state from previous data if we have more than 100
+            total: json.total || prev.total,
+            hasNextPage: prev.customers.length > json.customers.length ? prev.hasNextPage : json.hasNextPage,
+            endCursor: prev.customers.length > json.customers.length ? prev.endCursor : json.endCursor
+          };
+        });
       } else {
-        // Normal fetch
+        // Normal fetch (initial or filters)
         setData(json);
       }
     } catch (err) {
       if (!isSilent) setError(err.message);
     } finally {
+      setIsSyncing(false);
       if (!isSilent) {
         setInitialLoading(false);
         setFilterLoading(false);
@@ -102,15 +127,27 @@ function DashboardContent() {
     fetchData();
   }, [queryString]);
 
-  // Occasional sync (every 5 minutes) instead of every 10 seconds
+  // Near real-time sync (every 30 seconds) + Window Focus revalidation
   useEffect(() => {
+    const handleFocus = () => {
+      if (!loadingMore && !filterLoading) {
+        fetchData(true);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+
     const interval = setInterval(() => {
-      if (!loadingMore) {
+      if (!loadingMore && !filterLoading) {
         fetchData(true); 
       }
-    }, 300000); 
-    return () => clearInterval(interval);
-  }, [queryString, loadingMore]);
+    }, 30000); // 30 seconds for near real-time
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(interval);
+    };
+  }, [queryString, loadingMore, filterLoading]);
 
   const handleUpdateNoteLocal = (customerId, note) => {
     setData(prev => ({
@@ -160,9 +197,14 @@ function DashboardContent() {
             </h1>
             <p className="text-muted-foreground font-medium text-sm flex items-center gap-2">
               Managing <span className="text-foreground font-bold">{data.total || data.customers.length}</span> active prospects
-              {(filterLoading || loadingMore) && (
+              {(filterLoading || loadingMore || isSyncing) && (
                 <span className="inline-flex items-center gap-1 text-primary text-xs animate-pulse">
                   <Loader2 className="w-3 h-3 animate-spin" /> syncing...
+                </span>
+              )}
+              {!filterLoading && !loadingMore && !isSyncing && (
+                <span className="text-[10px] opacity-50 ml-2">
+                  Last checked: {lastChecked}
                 </span>
               )}
             </p>
