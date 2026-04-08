@@ -10,10 +10,11 @@ export async function middleware(request) {
   const isLoginPage = request.nextUrl.pathname === "/login";
   const isApiLogin = request.nextUrl.pathname === "/api/login";
   const isSetupApi = request.nextUrl.pathname === "/api/setup";
+  const isWebhookApi = request.nextUrl.pathname.startsWith("/api/webhooks/shopify");
   
-  // Allow login page, API login, and setup route
-  if (isLoginPage || isApiLogin || isSetupApi) {
-    if (authToken) {
+  // Allow login page, API login, setup route, and webhooks
+  if (isLoginPage || isApiLogin || isSetupApi || isWebhookApi) {
+    if (authToken && !isWebhookApi) {
       try {
         await jwtVerify(authToken, JWT_SECRET);
         return NextResponse.redirect(new URL("/", request.url));
