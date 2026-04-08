@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import dbConnect from "@/lib/db";
+import Customer from "@/app/models/Customer";
 
 const dbPath = path.join(process.cwd(), "data", "followups.json");
 
@@ -34,6 +36,14 @@ export async function POST(request, { params }) {
     const db = await readDb();
     db[customerId] = "done";
     await writeDb(db);
+
+    // Update MongoDB
+    await dbConnect();
+    await Customer.findOneAndUpdate(
+      { shopifyId: customerId },
+      { $set: { followupStatus: "done" } }
+    );
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Error setting followup done:", err);
@@ -50,6 +60,24 @@ export async function DELETE(request, { params }) {
       delete db[customerId];
       await writeDb(db);
     }
+
+    // Recalculate status for MongoDB
+    await dbConnect();
+    const customer = await Customer.findOne({ shopifyId: customerId });
+    if (customer && customer.followupDate) {
+        // Simple recalculation - could be improved by using lib/followup
+        const todayStr = new Date().toISOString().split("T")[0];
+        let newStatus = "upcoming";
+        const fDate = new Date(customer.followupDate).toISOString().split("T")[0];
+        if (fDate < todayStr) newStatus = "overdue";
+        else if (fDate === todayStr) newStatus = "due-today";
+        
+        await Customer.findOneAndUpdate(
+            { shopifyId: customerId },
+            { $set: { followupStatus: newStatus } }
+        );
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Error removing followup done:", err);

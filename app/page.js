@@ -61,30 +61,15 @@ function DashboardContent() {
       const json = await res.json();
       
       if (isSilent) {
-        // Silent refresh: Update existing customers and preserve the rest
-        setData(prev => {
-          const updatedCustomers = [...prev.customers];
-          
-          json.customers.forEach(newCust => {
-            const index = updatedCustomers.findIndex(c => c.customerId === newCust.customerId);
-            if (index !== -1) {
-              // Update existing
-              updatedCustomers[index] = { ...updatedCustomers[index], ...newCust };
-            } else {
-              // Prepend new ones if they are truly new (at the top)
-              updatedCustomers.unshift(newCust);
-            }
-          });
-
-          return {
-            ...json, // hasNextPage and endCursor from the latest first-page call are NOT used here
-            customers: updatedCustomers,
-            hasNextPage: prev.hasNextPage, // Keep pagination state
-            endCursor: prev.endCursor
-          };
-        });
+        // Silent refresh
+        setData(prev => ({
+          ...json,
+          customers: json.customers, // Replace for now to keep it simple and consistent with MongoDB
+          hasNextPage: json.hasNextPage,
+          endCursor: json.endCursor
+        }));
       } else {
-        // Normal fetch: Replace everything
+        // Normal fetch
         setData(json);
       }
     } catch (err) {
@@ -98,18 +83,32 @@ function DashboardContent() {
     }
   };
 
+  const triggerSync = async () => {
+    try {
+      setFilterLoading(true);
+      const res = await fetch("/api/customers?sync=true");
+      if (!res.ok) throw new Error("Failed to start sync");
+      // Optionally poll for status, but for now just wait and refresh after a bit
+      setTimeout(() => fetchData(true), 3000);
+    } catch (err) {
+      setError("Sync failed: " + err.message);
+    } finally {
+      setFilterLoading(false);
+    }
+  };
+
   // Initial and Filter-based fetch
   useEffect(() => {
     fetchData();
   }, [queryString]);
 
-  // Multi-agent Sync: Poll every 10 seconds
+  // Occasional sync (every 5 minutes) instead of every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       if (!loadingMore) {
-        fetchData(true); // Silent refresh
+        fetchData(true); 
       }
-    }, 10000);
+    }, 300000); 
     return () => clearInterval(interval);
   }, [queryString, loadingMore]);
 
@@ -124,12 +123,13 @@ function DashboardContent() {
 
 
   const handleLoadMore = async () => {
-    if (!data.endCursor || loadingMore) return;
+    if (!data.hasNextPage || loadingMore) return;
     
     setLoadingMore(true);
     try {
+      const skip = data.customers.length;
       const sep = queryString ? "&" : "?";
-      const res = await fetch(`/api/customers${queryString ? `?${queryString}` : ""}${sep}cursor=${data.endCursor}`);
+      const res = await fetch(`/api/customers${queryString ? `?${queryString}` : ""}${sep}skip=${skip}`);
       if (!res.ok) throw new Error("Failed to fetch more data");
       const json = await res.json();
       
@@ -159,7 +159,7 @@ function DashboardContent() {
               Telesales Dashboard
             </h1>
             <p className="text-muted-foreground font-medium text-sm flex items-center gap-2">
-              Managing <span className="text-foreground font-bold">{data.customers.length}</span> active prospects
+              Managing <span className="text-foreground font-bold">{data.total || data.customers.length}</span> active prospects
               {(filterLoading || loadingMore) && (
                 <span className="inline-flex items-center gap-1 text-primary text-xs animate-pulse">
                   <Loader2 className="w-3 h-3 animate-spin" /> syncing...
@@ -171,7 +171,7 @@ function DashboardContent() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Button
-              onClick={() => window.location.reload()}
+              onClick={triggerSync}
               variant="outline"
               className="rounded-xl border-border/50 hover:bg-accent transition-all duration-300"
             >

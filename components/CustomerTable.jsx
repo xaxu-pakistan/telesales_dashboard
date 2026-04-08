@@ -152,14 +152,12 @@ function CustomerRow({ index, c, loadingId, onMarkDone, onUpdateNote }) {
               {c.note ? (
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger 
-                      nativeButton={false}
+                    <TooltipTrigger
                       render={(props) => (
                       <span {...props} className="text-sm text-muted-foreground cursor-help truncate block">
                         {truncate(c.note)}
                       </span>
-                    )} />
-                    <TooltipContent className="max-w-xs p-3 rounded-2xl border-border/50 shadow-2xl">
+                    )} />                    <TooltipContent className="max-w-xs p-3 rounded-2xl border-border/50 shadow-2xl">
                       <p className="text-sm leading-relaxed">{c.note}</p>
                     </TooltipContent>
                   </Tooltip>
@@ -201,12 +199,10 @@ function CustomerRow({ index, c, loadingId, onMarkDone, onUpdateNote }) {
         {c.lastOrder?.items?.length > 0 ? (
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger 
-                nativeButton={false}
+              <TooltipTrigger
                 render={(props) => (
                 <span {...props} className="text-xs font-medium text-muted-foreground bg-accent/50 px-2.5 py-1 rounded-full border border-border/30 cursor-help truncate block">
-                  {c.lastOrder.items.length} item
-                  {c.lastOrder.items.length > 1 ? "s" : ""}:{" "}
+                  {c.lastOrder.items.length} item                  {c.lastOrder.items.length > 1 ? "s" : ""}:{" "}
                   {truncate(
                     c.lastOrder.items.map((i) => i.title).join(", "),
                     20,
