@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Menu, X, Box as BoxIcon } from "lucide-react";
+import { LayoutDashboard, Users, Menu, X, Box as BoxIcon, XCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+
 
 export function Sidebar({ role }) {
   const pathname = usePathname();
@@ -18,7 +19,9 @@ export function Sidebar({ role }) {
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/returns", label: "Returns", icon: BoxIcon },
+    { href: "/cancelled-orders", label: "Cancelled Orders", icon: XCircle },
   ];
+
 
   if (role === "super admin") {
     links.push({ href: "/users", label: "Manage Users", icon: Users });
