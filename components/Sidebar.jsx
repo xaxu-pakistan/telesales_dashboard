@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, Menu, X, Box as BoxIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -17,6 +17,7 @@ export function Sidebar({ role }) {
 
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/returns", label: "Returns", icon: BoxIcon },
   ];
 
   if (role === "super admin") {

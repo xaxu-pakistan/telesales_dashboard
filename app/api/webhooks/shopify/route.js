@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyShopifyWebhook } from "@/lib/shopify";
-import { syncSingleCustomer } from "@/lib/sync";
+import { syncSingleCustomer, syncSingleReturn } from "@/lib/sync";
 
 export async function POST(req) {
   try {
@@ -24,7 +24,15 @@ export async function POST(req) {
 
     const payload = JSON.parse(rawBody);
 
-    // 2. Extract Customer ID based on topic
+    // 2. Extract ID based on topic
+    if (topic.startsWith("returns/")) {
+      const returnId = String(payload.id);
+      console.log(`Syncing return ${returnId} due to ${topic} webhook...`);
+      const result = await syncSingleReturn(returnId);
+      if (result) console.log(`Successfully synced return: ${result.name}`);
+      return NextResponse.json({ message: "Return webhook processed" });
+    }
+
     let shopifyCustomerId = null;
 
     if (topic.startsWith("orders/")) {
