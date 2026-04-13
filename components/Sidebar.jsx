@@ -2,10 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Menu, X, Box as BoxIcon, XCircle } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Menu,
+  X,
+  Box as BoxIcon,
+  XCircle,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-
 
 export function Sidebar({ role }) {
   const pathname = usePathname();
@@ -17,11 +23,11 @@ export function Sidebar({ role }) {
   }, [pathname]);
 
   const links = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/", label: "Analytics Dashboard", icon: LayoutDashboard },
+    { href: "/customers", label: "Customers", icon: Users },
     { href: "/returns", label: "Returns", icon: BoxIcon },
     { href: "/cancelled-orders", label: "Cancelled Orders", icon: XCircle },
   ];
-
 
   if (role === "super admin") {
     links.push({ href: "/users", label: "Manage Users", icon: Users });
@@ -40,7 +46,7 @@ export function Sidebar({ role }) {
         )}
       </div>
 
-      <nav className="flex-1 px-4 space-y-2 mt-4">
+      <nav className="flex-1 px-4 space-y-2 mt-4 relative">
         {links.map((link) => {
           const isActive = pathname === link.href;
           const Icon = link.icon;
@@ -48,7 +54,7 @@ export function Sidebar({ role }) {
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+              className={` ${link.href == "/users" ? " absolute bottom-5 left-1/2 -translate-x-1/2 w-full flex justify-center" : ""}flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                 isActive
                   ? "bg-primary text-primary-foreground font-semibold shadow-md"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-sm"

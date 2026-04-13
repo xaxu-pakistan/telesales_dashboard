@@ -14,7 +14,10 @@ const ReturnSchema = new mongoose.Schema(
       shopifyId: String,
       gid: String,
       name: String,
+      totalPrice: { type: Number, default: 0 },
+      currencyCode: { type: String, default: "PKR" },
     },
+
     customer: {
       shopifyId: String,
       gid: String,
