@@ -40,7 +40,9 @@ export async function middleware(request) {
     
     // RBAC logic for Super Admin routes
     const isUsersRoute = request.nextUrl.pathname.startsWith("/users");
-    const isApiUsersRoute = request.nextUrl.pathname.startsWith("/api/users");
+    const isApiUsersRoute = request.nextUrl.pathname.startsWith("/api/users") && 
+                           !request.nextUrl.pathname.startsWith("/api/users/me") &&
+                           !request.nextUrl.pathname.startsWith("/api/users/sales-agents");
 
     if ((isUsersRoute || isApiUsersRoute) && payload.role !== "super admin") {
       if (isApiUsersRoute) {

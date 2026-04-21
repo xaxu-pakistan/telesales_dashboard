@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -34,7 +34,7 @@ function truncate(str, len = 40) {
   return str.length > len ? str.substring(0, len) + "..." : str;
 }
 
-function CustomerRow({ index, c, loadingId, onMarkDone, onUpdateNote }) {
+function CustomerRow({ index, c, loadingId, onMarkDone, onUpdateNote, salesAgents = [] }) {
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteValue, setNoteValue] = useState(c.note || "");
   const [isSavingNote, setIsSavingNote] = useState(false);
@@ -43,10 +43,12 @@ function CustomerRow({ index, c, loadingId, onMarkDone, onUpdateNote }) {
   const isDueToday = c.followupStatus === "due-today";
   const isDone = c.followupStatus === "done";
 
-  const handleSaveNote = async () => {
+  const handleSaveNote = async (val = noteValue) => {
     setIsSavingNote(true);
     try {
-      await onUpdateNote(c.customerId, noteValue);
+      const finalNote = val === "CLEAR_NOTE" ? "" : val;
+      await onUpdateNote(c.customerId, finalNote);
+      setNoteValue(finalNote);
       setIsEditingNote(false);
     } catch (err) {
       alert("Failed to update note");
@@ -114,56 +116,43 @@ function CustomerRow({ index, c, loadingId, onMarkDone, onUpdateNote }) {
       <td className="px-6 py-4 max-w-[240px]">
         {isEditingNote ? (
           <div className="flex items-center gap-2">
-            <Input
+            <select
               value={noteValue}
-              onChange={(e) => setNoteValue(e.target.value)}
-              className="h-8 text-xs rounded-lg"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSaveNote();
-                if (e.key === "Escape") handleCancelNote();
-              }}
+              onChange={(e) => handleSaveNote(e.target.value)}
+              className="h-8 text-[11px] rounded-lg w-full bg-background border border-input px-2 focus:ring-1 focus:ring-primary outline-none"
               disabled={isSavingNote}
-            />
-            <div className="flex gap-1 shrink-0">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
-                onClick={handleSaveNote}
-                disabled={isSavingNote}
-              >
-                {isSavingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                onClick={handleCancelNote}
-                disabled={isSavingNote}
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </div>
+              autoFocus
+            >
+              <option value="">— Select Agent —</option>
+              {salesAgents.map((agent) => (
+                <option key={agent._id} value={agent.name}>
+                  {agent.name}
+                </option>
+              ))}
+              {noteValue && !salesAgents.find(a => a.name === noteValue) && (
+                <option value={noteValue}>{noteValue} (Inactive)</option>
+              )}
+              <option value="CLEAR_NOTE" className="text-destructive font-bold">Clear Note</option>
+            </select>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10 shrink-0"
+              onClick={handleCancelNote}
+              disabled={isSavingNote}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
           </div>
         ) : (
           <div className="group/note flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               {c.note ? (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={(props) => (
-                      <span {...props} className="text-sm text-muted-foreground cursor-help truncate block">
-                        {truncate(c.note)}
-                      </span>
-                    )} />                    <TooltipContent className="max-w-xs p-3 rounded-2xl border-border/50 shadow-2xl">
-                      <p className="text-sm leading-relaxed">{c.note}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <span className="text-sm font-semibold text-foreground truncate block bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">
+                  {c.note}
+                </span>
               ) : (
-                <span className="text-muted-foreground opacity-30">—</span>
+                <span className="text-muted-foreground opacity-30 text-xs italic">Not Assigned</span>
               )}
             </div>
             <Button
@@ -310,6 +299,22 @@ export function CustomerTable({ customers, onNoteUpdated }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [salesAgents, setSalesAgents] = useState([]);
+
+  useEffect(() => {
+    async function fetchAgents() {
+      try {
+        const res = await fetch("/api/users/sales-agents");
+        const data = await res.json();
+        if (data.success) {
+          setSalesAgents(data.agents);
+        }
+      } catch (err) {
+        console.error("Failed to fetch sales agents:", err);
+      }
+    }
+    fetchAgents();
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(customers.length / ITEMS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
@@ -406,6 +411,7 @@ export function CustomerTable({ customers, onNoteUpdated }) {
                 loadingId={loadingId}
                 onMarkDone={handleMarkDone}
                 onUpdateNote={handleUpdateNote}
+                salesAgents={salesAgents}
               />
             ))}
           </tbody>

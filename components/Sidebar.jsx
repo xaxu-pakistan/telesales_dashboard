@@ -9,6 +9,7 @@ import {
   X,
   Box as BoxIcon,
   XCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,11 +24,20 @@ export function Sidebar({ role }) {
   }, [pathname]);
 
   const links = [
-    { href: "/", label: "Analytics Dashboard", icon: LayoutDashboard },
-    { href: "/customers", label: "Customers", icon: Users },
-    { href: "/returns", label: "Returns", icon: BoxIcon },
-    { href: "/cancelled-orders", label: "Cancelled Orders", icon: XCircle },
+    { href: "/", label: "Dashboard", icon: LayoutDashboard },
   ];
+
+  // Role-based links
+  if (role === "super admin" || role === "admin" || role === "finance" || role === "sales agent") {
+    links.push({ href: "/customers", label: "Customers", icon: Users });
+  }
+
+  if (role === "sales agent") {
+    links.push({ href: "/my-customers", label: "My Customers", icon: ShieldCheck });
+  }
+
+  links.push({ href: "/returns", label: "Returns", icon: BoxIcon });
+  links.push({ href: "/cancelled-orders", label: "Cancelled Orders", icon: XCircle });
 
   if (role === "super admin") {
     links.push({ href: "/users", label: "Manage Users", icon: Users });
